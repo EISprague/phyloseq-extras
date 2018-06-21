@@ -1,0 +1,45 @@
+otu_abundance = function(physeq, rank, cutoff) { #assumes the phyloseq object has been converted to relative abundance
+  #physeq is the phyloseq object, rank is which taxonomy rank you want to examine such as "Phylum",
+  #per is the minimum total abundance percentage cutoff (if per=0.005 and rank="Phylum", the output will
+  #only include the phyla that make up 0.5% or more of the total sequences across all samples; all phyla below the cutoff will be relabeled "Other")
+  require(phyloseq)
+  require(magrittr)
+  require(plyr)
+  require(dplyr)
+  
+  physeq.glom = tax_glom(physeq, taxrank = rank) #Merges taxa with the same taxonomy at the given rank
+  total = taxa_sums(physeq.glom) #sums raw abundance for each phylum across all samples; named with OTU tags, not actual phyla names
+  overall = data.frame(OTU = names(total), raw.count = as.numeric(total))
+  overall$rel.abund = overall$raw.count/sum(overall$raw.count) #calculates the overall relative abundance of each taxon to determine if it is above or below the cutoff
+  #colnames(overall) = c("OTU", "raw.count", "total.per")
+  physeq.melt = psmelt(physeq.glom) #turns phyloseq object into dataframe
+  physeq.melt[, rank] = as.character(physeq.melt[, rank])
+  merged = merge(physeq.melt, overall, by = "OTU") #adds the cutoff calculations to the dataframe
+  
+  if (cutoff < 1) { 
+    merged[merged$rel.abund < cutoff, rank] = "Other" #labels taxa that didn't make the cutoff as "Other"
+  }
+  
+  else {
+    top = data.frame(rel.abund = merged$rel.abund, rank = merged[rank]) %>%
+      distinct() %>% arrange(desc(rel.abund)) %>% top_n(cutoff, rel.abund)
+    merged[!(merged[, rank] %in% top[, rank]), rank] = "Other"
+    
+  }
+  
+  all_ranks = colnames(physeq.glom@tax_table@.Data)[1:which(colnames(physeq.glom@tax_table@.Data) == rank)]
+  colnames(merged)[which(colnames(merged) == rank)] = "Glommed_rank"
+  others.combined = aggregate(cbind(Abundance, rel.abund, raw.count) ~ X.SampleID + Glommed_rank,
+                              FUN = sum, data = merged)
+  merged$Abundance = NULL
+  merged$raw.count = NULL
+  merged$rel.abund = NULL
+  merged$OTU = NULL
+  merged = distinct(merged[, !(colnames(merged) %in% all_ranks)])
+  
+  out = merge(others.combined, merged, by = c("X.SampleID", "Glommed_rank"), all = F)
+  colnames(out)[which(colnames(out) == "Glommed_rank")] = rank
+  out$raw.count = NULL
+  
+  return(distinct(out))
+}
