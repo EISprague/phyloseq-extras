@@ -1,0 +1,64 @@
+source("otu_abundance function.R")
+library(phyloseq)
+library(ggplot2)
+library(magrittr)
+data("GlobalPatterns")
+
+bar_abundance_raw_df = otu_abundance(GlobalPatterns, "Phylum", 12)
+bar_abundance_raw_df$SampleType = factor(bar_abundance_raw_df$SampleType, 
+                                         levels = c("Ocean", "Sediment (estuary)", "Freshwater", "Freshwater (creek)",
+                                                    "Soil", "Skin", "Tongue", "Feces", "Mock"), 
+                                         labels = c("Ocean", "Estuary sed", "Fresh", "Fresh creek", "Soil", "Skin",
+                                                    "Tongue", "Feces", "Mock"), ordered = T)
+
+sort(unique(bar_abundance_raw_df$Phylum)) 
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Alphaproteobacteria"] = "aAlphaproteobacteria"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Betaproteobacteria"] = "bBetaproteobacteria"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Gammaproteobacteria"] = "cGammaproteobacteria"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Deltaproteobacteria"] = "dDeltaproteobacteria"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Acidobacteria"] = "eAcidobacteria"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Actinobacteria"] = "fActinobacteria"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Bacteroidetes"] = "gBacteroidetes"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Cyanobacteria"] = "hCyanobacteria"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Firmicutes"] = "iFirmicutes"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Planctomycetes"] = "jPlanctomycetes"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Tenericutes"] = "kTenericutes"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Verrucomicrobia"] = "lVerrucomicrobia"
+bar_abundance_raw_df$Phylum[bar_abundance_raw_df$Phylum == "Other"] = "mOther"
+
+phyla = sort(unique(bar_abundance_raw_df$Phylum)) %>%
+  factor(., levels = ., ordered = T); phyla
+bar.colors = colors()[c(24, 117, 142, 26, 507, 393, 222, 96, 109, #List that lines up with sediment graph
+                        91, 85, 555, 291, 639, 25, 94, NA)]
+bar.colors = bar.colors[1:length(phyla)]; names(bar.colors) = levels(phyla); bar.colors
+
+samps.plot.raw = {ggplot(bar_abundance_raw_df, aes(x = Sample, y = Abundance, fill = Phylum)) +
+    facet_grid( ~ SampleType, scales = "free_x", space = "free_x", drop = F) +
+    geom_col() +
+    #scale_x_discrete(expand = c(0.04, 0), limits = rev(levels(rel.abun.all.01$Depth))) +
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 2500000), labels = scales::scientific) +
+    xlab("Sample") + ylab("Relative abundance") +
+    scale_fill_manual(breaks = names(bar.colors), values = bar.colors, 
+                      guide = guide_legend(ncol = 1),
+                      labels = c(expression(paste(alpha, "-proteobacteria")),
+                                 expression(paste(beta, "-proteobacteria")), 
+                                 expression(paste(gamma, "-proteobacteria")), 
+                                 expression(paste(delta, "-proteobacteria")),
+                                 "Acidobacteria", "Actinobacteria", "Bacteroidetes", 
+                                 "Cyanobacteria", "Firmicutes", "Fusobacteria",
+                                 "Planctomycetes", "Verrucomicrobia", "Other phyla"
+                      )) +
+    theme_classic() +
+    theme(text = element_text(size = 12),
+          legend.text.align = 0, 
+          #legend.key.width = unit(0.38, "in"),
+          legend.key.size = unit(1, "lines"),
+          legend.margin = margin(t = 1, r = 0.25, unit = "lines"),
+          #axis.title = element_text(margin = margin(t = 0)), 
+          axis.text.x = element_text(angle = 30, hjust = 1, margin = margin(0)),
+          axis.text.y = element_text(angle = 30),
+          strip.background = element_blank(),
+          strip.text = element_text(margin = margin(0)),
+          plot.margin = margin(0) 
+          #panel.spacing.x = unit(c(0.25, 0.25, 0.25, 0.25, 1.5, 0.25, 0.25, 1.5), "line") 
+    )}; samps.plot.raw
