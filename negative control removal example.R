@@ -11,7 +11,8 @@ negs = subset_samples(physeq, Depth == "control")
 #OTU.samp.only = sort(OTU.all[!(OTU.all %in% OTU.negs)]) ###Taxa in samps only
 ###Ratios of all OTUs found in samples AND in controls for a given extraction day;
 ### higher than 1 means there were more sequences in the sample than its corresponding control so you should probably keep that OTU
-neg.ratios = neg_ratios_together(samps, negs)
+neg.ratios.testing = neg_OTU_ratios_by_date(samps, negs)
+neg.ratios = neg_ratios_matrix(samps, negs)
 
 less.than.OTUs = less_than_taxa(neg.ratios, 1) #2nd argument determines ratio cutoff. For example, 1 will find OTUs with a consistent 1:1 ratio or lower, while 0.5 will find OTUs that consistently appeared up to 2x as often in the negative controls compared to the samples
 
