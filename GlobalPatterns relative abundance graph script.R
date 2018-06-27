@@ -34,14 +34,13 @@ bar_abundance_rel_df$Phylum[bar_abundance_rel_df$Phylum == "Other"] = "mOther"
 
 phyla = sort(unique(bar_abundance_rel_df$Phylum)) %>%
   factor(., levels = ., ordered = T); phyla
-bar.colors = colors()[c(24, 117, 142, 26, 507, 393, 222, 96, 109, #List that lines up with sediment graph
+bar.colors = colors()[c(24, 117, 142, 26, 507, 393, 222, 96, 109,
                         91, 85, 555, 291, 639, 25, 94, NA)]
 bar.colors = bar.colors[1:length(phyla)]; names(bar.colors) = levels(phyla); bar.colors
 
 samps.plot.rel = {ggplot(bar_abundance_rel_df, aes(x = X.SampleID, y = Abundance, fill = Phylum)) +
     facet_grid( ~ SampleType, scales = "free_x", space = "free_x", drop = F) +
     geom_col() +
-    #scale_x_discrete(expand = c(0.04, 0), limits = rev(levels(rel.abun.all.01$Depth))) +
     scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
     xlab("Sample") + ylab("Relative abundance") +
     scale_fill_manual(breaks = names(bar.colors), values = bar.colors, 
@@ -57,13 +56,10 @@ samps.plot.rel = {ggplot(bar_abundance_rel_df, aes(x = X.SampleID, y = Abundance
     theme_classic() +
     theme(text = element_text(size = 12),
           legend.text.align = 0, 
-          #legend.key.width = unit(0.38, "in"),
           legend.key.size = unit(1, "lines"),
           legend.margin = margin(t = 1, r = 0.25, unit = "lines"),
-          #axis.title = element_text(margin = margin(t = 0)), 
           axis.text.x = element_text(angle = 30, hjust = 1, margin = margin(0)),
           strip.background = element_blank(),
           strip.text = element_text(margin = margin(0)),
           plot.margin = margin(0) 
-          #panel.spacing.x = unit(c(0.25, 0.25, 0.25, 0.25, 1.5, 0.25, 0.25, 1.5), "line") 
     )}; samps.plot.rel
