@@ -1,27 +1,24 @@
+source("negative control functions.R")
 library(phyloseq)
 library(magrittr)
 data(GlobalPatterns)
 
-###Sorting OTUs into negatives and samples----
-samps = subset_samples(physeq, Depth != "control")
-negs = subset_samples(physeq, Depth == "control")
-sample_data(physeq)$Control_type[sample_data(physeq)$Depth == "control"] = "negative"
-sample_data(physeq)$Control_type[is.na(sample_data(physeq)$Control_type)] = "sample"
-#Generating list of negative OTUs
-#OTU.all = sort(taxa_names(physeq)) ###All taxa
-#OTU.negs = sort(taxa_names(prune_taxa(taxa_sums(negs) > 0, negs))) ###Taxa in both negs and samps
-#OTU.samp.only = sort(OTU.all[!(OTU.all %in% OTU.negs)]) ###Taxa in samps only
-###Ratios of all OTUs found in samples AND in controls for a given extraction day;
-### higher than 1 means there were more sequences in the sample than its corresponding control so you should probably keep that OTU
-#neg.ratios.testing = neg_OTU_ratios_by_date(samps, negs)
-#neg.ratios = neg_ratios_matrix(samps, negs)
 
-less.than.OTUs = contaminants_by_date_ratio(samps, negs, 1, "Extraction.date") #2nd argument determines ratio cutoff. For example, 1 will find OTUs with a consistent 1:1 ratio or lower, while 0.5 will find OTUs that consistently appeared up to 2x as often in the negative controls compared to the samples
 
-###Removing OTUs identified as contaminants
-samps.final = prune_taxa(!(taxa_names(samps) %in% less.than.OTUs), samps) %>%
-  prune_taxa(taxa_sums(.) > 0, .)
+sample_data(GlobalPatterns)$Control_type[sample_data(GlobalPatterns)$SampleType == "Mock"] = "negative"
+sample_data(GlobalPatterns)$Control_type[is.na(sample_data(GlobalPatterns)$Control_type)] = "sample"
 
-samps.final = remove_contaminants(physeq, 1, "negative", "Extraction.date")
+sample_data(GlobalPatterns)$Extr_date[sample_data(GlobalPatterns)$Control_type == "negative"] = c("A", "B", "C")
+set.seed(711)
+sample_data(GlobalPatterns)$Extr_date[sample_data(GlobalPatterns)$Control_type == "sample"] = sample(c("A", "B", "C"), size = 23, replace = T)
 
-rm(samps, negs, OTU.negs, OTU.all, OTU.samp.only, neg.ratios, less.than.OTUs) #these objects are no longer necessary
+cleaned = remove_contaminants(GlobalPatterns, 1, "negative", "Extr_date") #returns phyloseq object with contaminant OTUs removed in one step (using the following 3 functions)
+
+#If you want to use one of the other functions instead for exploratory purposes, you'll have to break your phyloseq object into one consisting of only samples, and one consistent only of negative controls
+samps = subset_samples(GlobalPatterns, Control_type != "negative")
+negs = subset_samples(GlobalPatterns, Control_type == "negative")
+contaminants = contaminants_by_date_ratio(samps, negs, 1, "Extr_date") #returns vector of contaminant OTUs as determined by ratio
+ratios.matrix = neg_ratios_matrix(samps, negs, "Extr_date") #returns single matrix of ratios of sample sequence counts to negative control counts
+ratios.list = neg_OTU_ratios_by_date(samps, negs, "Extr_date") #returns list of ratio matrices, one element for each extraction date
+
+

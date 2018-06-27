@@ -1,5 +1,10 @@
-negcontrol = "control"
 remove_contaminants = function(physeq, ratio, negcontrol, date_colname) {
+  #Assumes there is a column "Control_type" in sample_data(physeq) to identify what type of control each sample is (or isn't)
+  #physeq is the phyloseq object
+  #ratio is the cutoff ratio of sample sequences : negative control sequences. So if you want OTUs to be considered contaminants if they are equally or more abundant in the negative control than in the corresponding samples, use ratio = 1. If you want them to be considered contaminants if there is 1 sequence in the sample for every 2 or more sequences in the negative control, use ratio = 1/2.
+  #negcontrol is a string that tells the function which value in the Control_type column means a given sample is a negative control
+  #date_colname is a string telling the function which column in sample_data(physeq) will group the samples with negative controls by date
+  #The ratio has to be consistent for every sample. So for a given OTU, if there are 5 samples where the ratio is less than the ratio cutoff given by the user (and therefore the OTU is likely a contaminant), but a sixth sample where the ratio is higher, the OTU will NOT be included in the final output and therefore will not be considered a contaminant.
   require(phyloseq)
   orig.sample.data = as(sample_data(physeq), "data.frame")
   samps = physeq
@@ -12,20 +17,15 @@ remove_contaminants = function(physeq, ratio, negcontrol, date_colname) {
   return(out)
 }
 
-ratio = 1
 contaminants_by_date_ratio = function(samps, negs, ratio, date_colname) {
   #Returns vector of OTU names of contaminants as determined by the ratio input.
-  #ratio is the cutoff ratio of sample sequences : negative control sequences. So if you want OTUs to be considered contaminants if they are equally or more abundant in the negative control than in the corresponding samples, use ratio = 1. If you want them to be considered contaminants if there is 1 sequence in the sample for every 2 or more sequences in the negative control, use ratio = 1/2.
-  #The ratio has to be consistent for every sample. So for a given OTU, if there are 5 samples where the ratio is less than the ratio cutoff given by the user (and therefore the OTU is likely a contaminant), but a sixth sample where the ratio is higher, the OTU will NOT be included in the final output and therefore will not be considered a contaminant.
   ratio.mat = neg_ratios_matrix(samps, negs, date_colname)
   out = rownames(ratio.mat[apply(X = ratio.mat, MARGIN = 1, 
                                  FUN = function(y) { all(y <= ratio) } ), 
                            ])
   return(out)
 }
-rm(ratio, out, rat.mat)
 
-i = 1
 neg_ratios_matrix = function(samps, negs, date_colname) {
   #Calls neg_OTU_ratios_by_date, combines list into a single matrix to make everything else easier
   ###Assumes the user has left the sample name column in their sample_data(physeq) as "X.SampleID"
@@ -47,15 +47,11 @@ neg_ratios_matrix = function(samps, negs, date_colname) {
   return(new.data)
 }
 
-rm(i, new.data, rnames, cnames, all.neg.OTUs, neg.OTUs, input)
-
-date_colname = "Extraction.date"
-i = 1
 neg_OTU_ratios_by_date = function(samps, negs, date_colname) {
   #Outputs list of OTU ratio matrices of samples to controls
   #Each element of output list is an extraction date, each column of each element is a sample, each row is an OTU
   ###If there's an extraction date with only one sample, this won't work
-  dates = levels(unlist(samps@sam_data@.Data[samps@sam_data@names == date_colname])) #character vector of extraction dates
+  dates = unique(unlist(samps@sam_data@.Data[samps@sam_data@names == date_colname])) #character vector of extraction dates
   ratio.list = setNames(vector("list", length(dates)), dates) #empty list to fill, with dates as names of elements
   for(i in 1:length(ratio.list)) { #loop that makes each element of tab.ratio.comb into a matrix
     negs.date = negs@otu_table@.Data[, unlist(negs@sam_data@.Data[negs@sam_data@names == date_colname]) == dates[i]] #subsets the negs object to the negative control used on the current loop's date
@@ -71,5 +67,3 @@ neg_OTU_ratios_by_date = function(samps, negs, date_colname) {
   
   return(ratio.list) #You now have a list with a matrix element for each extraction date.
 }
-
-rm(date_colname, i, dates, ratio.list, negs.date, negs.OTUs, samps.date, date.ratio)
