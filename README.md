@@ -1,4 +1,4 @@
-Functions and scripts that I wrote during my M.S. that made microbiome data analysis easier.
+Functions and scripts that I wrote during my M.S. that made microbiome data analysis easier. Compatible with phyloseq version 1.24.0
 
 
 GlobalPatterns raw abundance graph script.R: An example of my otu_abundance() function (see "otu_abundance function.R" below) using the GlobalPatterns data set that comes with the phyloseq package. This particular example uses the raw abundance data.
