@@ -1,36 +1,38 @@
 remove_contaminants = function(physeq, ratio, negcontrol, date_colname) {
   #Assumes there is a column "Control_type" in sample_data(physeq) to identify what type of control each sample is (or isn't)
+  #Assumes all samples are either negative controls or samples (positive controls are treated like samples)
+  #Assumes there is a column "X.SampleID" with sample names
   #physeq is the phyloseq object
   #ratio is the cutoff ratio of sample sequences : negative control sequences. So if you want OTUs to be considered contaminants if they are equally or more abundant in the negative control than in the corresponding samples, use ratio = 1. If you want them to be considered contaminants if there is 1 sequence in the sample for every 2 or more sequences in the negative control, use ratio = 1/2.
   #negcontrol is a string that tells the function which value in the Control_type column means a given sample is a negative control
   #date_colname is a string telling the function which column in sample_data(physeq) will group the samples with negative controls by date
   #The ratio has to be consistent for every sample. So for a given OTU, if there are 5 samples where the ratio is less than the ratio cutoff given by the user (and therefore the OTU is likely a contaminant), but a sixth sample where the ratio is higher, the OTU will NOT be included in the final output and therefore will not be considered a contaminant.
   require(phyloseq)
-  orig.sample.data = as(sample_data(physeq), "data.frame")
+  orig.sample.data = as(sample_data(physeq), "data.frame") #Turns sample_data(physeq) into data frame
   samps = physeq
-  sample_data(samps) = sample_data(orig.sample.data[orig.sample.data$Control_type != negcontrol, ])
+  sample_data(samps) = sample_data(orig.sample.data[orig.sample.data$Control_type != negcontrol, ]) #creates phyloseq object with all non-negative controls
   negs = physeq
-  sample_data(negs) = sample_data(orig.sample.data[orig.sample.data$Control_type == negcontrol, ])
+  sample_data(negs) = sample_data(orig.sample.data[orig.sample.data$Control_type == negcontrol, ]) #creates phyloseq object with only negative controls
   
-  contaminants = contaminants_by_date_ratio(samps, negs, ratio, date_colname)
-  out = prune_taxa(!(taxa_names(samps) %in% contaminants), samps)
-  return(out)
+  contaminants = contaminants_by_date_ratio(samps, negs, ratio, date_colname) #makes vector of OTUs identified as contaminants
+  out = prune_taxa(!(taxa_names(samps) %in% contaminants), samps) #removes contaminant OTUs from samps object
+  return(out) #returns a phyloseq object with contaminant OTUs removed and no negative controls
 }
 
 contaminants_by_date_ratio = function(samps, negs, ratio, date_colname) {
   #Returns vector of OTU names of contaminants as determined by the ratio input.
-  ratio.mat = neg_ratios_matrix(samps, negs, date_colname)
+  ratio.mat = neg_ratios_matrix(samps, negs, date_colname) #makes single matrix of OTUs (rows) and samples (columns), and the ratio of sample sequences : negative control sequences. If the ratio is zero, it means that OTU did NOT appear in BOTH the sample and its corresponding negative control
   out = rownames(ratio.mat[apply(X = ratio.mat, MARGIN = 1, 
                                  FUN = function(y) { all(y <= ratio) } ), 
-                           ])
+                           ]) #trims matrix so OTUs are only returned/identified as contaminants if ALL of their ratios are less than the ratio argument. In other words, for every pair of sample and negative control, a given OTU has to CONSISTENTLY be more common in the negative control than the sample (or it had a ratio of zero). A single instance of the OTU having more sequences in the sample than the corresponding negative control will prevent it from being ID'd as a contaminant.
   return(out)
 }
 
 neg_ratios_matrix = function(samps, negs, date_colname) {
   #Calls neg_OTU_ratios_by_date, combines list into a single matrix to make everything else easier
-  ###Assumes the user has left the sample name column in their sample_data(physeq) as "X.SampleID"
+  ###Assumes the user has left the sample name column in sample_data(physeq) as "X.SampleID"
   input = neg_OTU_ratios_by_date(samps, negs, date_colname) #gets the list from the previous function
-  neg.OTUs = lapply(input, function(x) { unlist(dimnames(x)[1]) } ) #makes a list of vectors; each vector contains all the OTUs found in both the negative controls and samples for an extraction date
+  neg.OTUs = lapply(input, function(x) { unlist(dimnames(x)[1]) } ) #makes a list of vectors; each vector contains all the OTUs found in both the negative control and samples for an extraction date
   all.neg.OTUs = sort(unique(unlist(neg.OTUs))) #makes a single vector containing all unique OTU IDs that were found to occur in both a sample and its corresponding negative control at least once
   new.data = matrix(nrow = length(all.neg.OTUs), ncol = length(sample_data(samps)$X.SampleID),
                     dimnames = list(all.neg.OTUs, sample_data(samps)$X.SampleID)) #makes an empty matrix with one row for each OTU and one column for each sample (negative controls don't need their own columns anymore)
@@ -42,7 +44,7 @@ neg_ratios_matrix = function(samps, negs, date_colname) {
   }
   
   new.data[is.na(new.data)] = 0 #replaces any remaining NA values with 0
-  new.data = new.data[rowSums(new.data) > 0, ] #double check that all OTUs have a ratio for at least one sample
+  new.data = new.data[rowSums(new.data) > 0, ] #double check that all OTUs have a non-zero ratio for at least one sample
   new.data = signif(new.data, digits = 3) #more than 3 sig figs seemed annoying and unnecessary
   return(new.data)
 }
