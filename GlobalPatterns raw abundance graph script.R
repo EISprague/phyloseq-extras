@@ -1,4 +1,4 @@
-source("otu_abundance function.R")
+source("./functions/otu_abundance function.R")
 library(phyloseq)
 library(ggplot2)
 library(magrittr)
