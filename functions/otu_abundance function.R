@@ -1,47 +1,53 @@
-otu_abundance = function(physeq, rank, cutoff) { 
-  ##physeq is the phyloseq object; it should already be converted to relative abundance if desired
-  #rank is which taxonomy rank you want to glom and examine such as "Phylum"
-  #cutoff determines which taxa keep their names and which are renamed "Other"
-  #If cutoff < 1, all taxa with an overall relative abundance greater than cutoff will keep their names. ex: if cutoff = 0.01, all taxa that make up 1% or more of all sequences across all samples will keep their names. All other taxa will be labeled "Other"
-  #If cutoff > 1, the most abundant taxa will keep their names. ex: if cutoff = 12, the 12 most abundant taxa across all samples will keep their names, and all other taxa will be renamed "Other". If you want to decide the number of colors to use ahead of time, this is the route to choose
-  #If cutoff = 0, no taxa will be renamed as "Other" and a useable data frame is returned
+function(physeq, rank = NULL, cutoff, keep_ranks = T) { 
+  #physeq is the phyloseq object
+  #rank is the taxonomic rank you want to examine such as "Phylum". Use rank = NULL if your physeq object is already the output of the tax_glom or tip_glom functions to the level you wish to examine. Function assumes you wish to view taxa that have been agglomerated to at least the Species or other lowest taxonomic level, not individual OTUs or sequence variants.
+  #cutoff (if < 1) is the minimum percentage of the relative abundance of the taxa you wish to visualize. If > 1, it is the x most abundant number of taxa you wish to visualize. All taxa with either less than the minimum percent or not in the top x most abundant will be grouped together and returned as "Other". If = 0, it returns all taxa.
+  #keep_ranks: if TRUE, all taxonomic levels above the glommed level will be returned in the final data frame. If FALSE they will be omitted
   require(phyloseq)
   require(magrittr)
   require(plyr)
   require(dplyr)
   
-  physeq.glom = tax_glom(physeq, taxrank = rank) #Merges taxa at the given rank
-  total = taxa_sums(physeq.glom) #sums abundance for each phylum across all samples; named with OTU tags, not actual phyla names at this step
+  if (is.null(rank)) {
+    physeq.new = physeq
+    rank = colnames(physeq.new@tax_table@.Data)[ncol(physeq.new@tax_table@.Data)]
+  } else {
+    physeq.new = tax_glom(physeq, taxrank = rank) #Merges taxa with the same taxonomy at the given rank
+  }
+  total = taxa_sums(physeq.new) #sums raw abundance for each phylum across all samples; named with OTU tags, not actual phyla names
   overall = data.frame(OTU = names(total), raw.count = as.numeric(total))
-  overall$rel.abund = overall$raw.count/sum(overall$raw.count) #calculates the relative abundance of each taxon across samples
-  physeq.melt = psmelt(physeq.glom) #turns phyloseq object into dataframe
-  physeq.melt[, rank] = as.character(physeq.melt[, rank]) #makes rank into character vector instead of factor
-  merged = merge(physeq.melt, overall, by = "OTU") #adds the overall calculations to the dataframe
+  overall$rel.abund = overall$raw.count/sum(overall$raw.count) #calculates the overall relative abundance of each taxon to determine if it is above or below the cutoff
+  physeq.melt = psmelt(physeq.new) #turns phyloseq object into dataframe
+  physeq.melt = physeq.melt[, -4]
+  physeq.melt[, rank] = as.character(physeq.melt[, rank])
+  merged = merge(physeq.melt, overall, by = "OTU") #adds the cutoff calculations to the dataframe
   
-  if (cutoff < 1) { #this statement is used for percentage-based cutoffs
+  if (cutoff < 1) { 
     merged[merged$rel.abund < cutoff, rank] = "Other" #labels taxa that didn't make the cutoff as "Other"
+  } else {
+    top = data.frame(rel.abund = merged$rel.abund, rank = merged[rank]) %>%
+      distinct() %>%
+      arrange(desc(rel.abund)) %>%
+      top_n(cutoff, rel.abund)
+    merged[!(merged[, rank] %in% top[, rank]), rank] = "Other"
   }
   
-  else { #this statement is used for rankings-based cutoffs
-    top = data.frame(rel.abund = merged$rel.abund, rank = merged[rank]) %>% #orders taxa by abundance
-      distinct() %>% arrange(desc(rel.abund)) %>% top_n(cutoff, rel.abund)
-    merged[!(merged[, rank] %in% top[, rank]), rank] = "Other" #labels taxa that didn't make the cutoff as "Other"
-    
-  }
-  
-  all_ranks = colnames(physeq.glom@tax_table@.Data)[1:which(colnames(physeq.glom@tax_table@.Data) == rank)] #used later
-  colnames(merged)[which(colnames(merged) == rank)] = "Glommed_rank" #renames the rank column for the following steps
-  others.combined = aggregate(cbind(Abundance, rel.abund, raw.count) ~ X.SampleID + Glommed_rank, #sums abundance columns for each combination of taxon and sample
+  #colnames(merged)[which(colnames(merged) == rank)] = "Glommed_rank"
+  others.combined = aggregate(cbind(Abundance, rel.abund, raw.count) ~ Sample + OTU,
                               FUN = sum, data = merged)
-  merged$Abundance = NULL #deleting columns unecessary to the end user (contain numbers for overall abundance instead of by sample)
+  merged$Abundance = NULL
   merged$raw.count = NULL
   merged$rel.abund = NULL
-  merged$OTU = NULL
-  merged = distinct(merged[, !(colnames(merged) %in% all_ranks)]) #removes repeated rows
+  if (keep_ranks) {
+    merged = distinct(merged)
+  } else {
+    all_ranks = colnames(physeq.new@tax_table@.Data)[1:which(colnames(physeq.new@tax_table@.Data) == rank)]
+    merged = distinct(merged[, !(colnames(merged) %in% all_ranks)])
+  }
   
-  out = merge(others.combined, merged, by = c("X.SampleID", "Glommed_rank"), all = F) #merges sample_data from original physeq input with newly calculated abundance data and renamed taxa
-  colnames(out)[which(colnames(out) == "Glommed_rank")] = rank #renames column with rank again
-  out$raw.count = NULL #unecessary to end user
+  out = merge(others.combined, merged, by = c("Sample", "OTU"), all = F)
+  out$raw.count = NULL
+  out$OTU = NULL
   
   return(distinct(out))
 }
