@@ -1,4 +1,4 @@
-function(physeq, rank = NULL, cutoff, keep_ranks = T) { 
+otu_abundance = function(physeq, rank = NULL, cutoff, keep_ranks = T) { 
   #physeq is the phyloseq object
   #rank is the taxonomic rank you want to examine such as "Phylum". Use rank = NULL if your physeq object is already the output of the tax_glom or tip_glom functions to the level you wish to examine. Function assumes you wish to view taxa that have been agglomerated to at least the Species or other lowest taxonomic level, not individual OTUs or sequence variants.
   #cutoff (if < 1) is the minimum percentage of the relative abundance of the taxa you wish to visualize. If > 1, it is the x most abundant number of taxa you wish to visualize. All taxa with either less than the minimum percent or not in the top x most abundant will be grouped together and returned as "Other". If = 0, it returns all taxa.
