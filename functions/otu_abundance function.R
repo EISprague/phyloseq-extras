@@ -14,14 +14,15 @@ otu_abundance = function(physeq, rank = NULL, cutoff, keep_ranks = T) {
   } else {
     physeq.new = tax_glom(physeq, taxrank = rank) #Merges taxa with the same taxonomy at the given rank
   }
+  nranks = ncol(physeq.new@tax_table@.Data[, 1:which(colnames(physeq.new@tax_table@.Data) == rank)])
   total = taxa_sums(physeq.new) #sums raw abundance for each phylum across all samples; named with OTU/SV tags, not taxonomic rank names at this point
-  overall = data.frame(feature = names(total), raw.count = as.numeric(total))
+  overall = data.frame(OTU = names(total), raw.count = as.numeric(total))
   overall$rel.abund = overall$raw.count/sum(overall$raw.count) #calculates the relative abundance across all samples of each taxon to determine if it is above or below the cutoff
   physeq.melt = psmelt(physeq.new) #turns phyloseq object into dataframe
   #physeq.melt = physeq.melt[, -4]
   physeq.melt[, rank] = as.character(physeq.melt[, rank])
-  colnames(physeq.melt)[1] = "feature"
-  merged = merge(physeq.melt, overall, by = "feature") #adds the cutoff calculations to the dataframe
+  #colnames(physeq.melt)[1] = "OTU"
+  merged = merge(physeq.melt, overall, by = "OTU") #adds the cutoff calculations to the dataframe
   
   if (cutoff < 1) { 
     merged[merged$rel.abund < cutoff, rank] = "Other" #labels taxa that didn't make the cutoff as "Other"
@@ -34,7 +35,7 @@ otu_abundance = function(physeq, rank = NULL, cutoff, keep_ranks = T) {
   }
   
   #colnames(merged)[which(colnames(merged) == rank)] = "Glommed_rank"
-  others.combined = aggregate(cbind(Abundance, rel.abund, raw.count) ~ Sample + feature,
+  others.combined = aggregate(cbind(Abundance, rel.abund, raw.count) ~ Sample + OTU,
                               FUN = sum, data = merged)
   merged$Abundance = NULL
   merged$raw.count = NULL
@@ -44,11 +45,14 @@ otu_abundance = function(physeq, rank = NULL, cutoff, keep_ranks = T) {
   } else {
     all_ranks = colnames(physeq.new@tax_table@.Data)[1:which(colnames(physeq.new@tax_table@.Data) == rank)]
     merged = distinct(merged[, !(colnames(merged) %in% all_ranks)])
+    nranks = 1
   }
   
-  out = merge(others.combined, merged, by = c("Sample", "feature"), all = F)
+  out = merge(others.combined, merged, by = c("Sample", "OTU"), all = F)
   out$raw.count = NULL
   out$OTU = NULL
-  
+  #out[out[rank] == "Other", (ncol(out)-nranks+1):(ncol(out)-1)] = "Other"
+  #^As is this doesn't add the values of all those Others together and I think it is just deleting the rows that happen to have the exact same abundances.
+  out = distinct(out)
   return(distinct(out))
 }
