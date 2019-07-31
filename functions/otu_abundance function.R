@@ -15,12 +15,15 @@ otu_abundance = function(physeq, rank = NULL, cutoff, keep_ranks = T) {
     physeq.new = tax_glom(physeq, taxrank = rank) #Merges taxa with the same taxonomy at the given rank
   }
   nranks = ncol(physeq.new@tax_table@.Data[, 1:which(colnames(physeq.new@tax_table@.Data) == rank)])
+  first_rank = colnames(physeq.new@tax_table@.Data)[1]
   total = taxa_sums(physeq.new) #sums raw abundance for each phylum across all samples; named with OTU/SV tags, not taxonomic rank names at this point
   overall = data.frame(OTU = names(total), raw.count = as.numeric(total))
   overall$rel.abund = overall$raw.count/sum(overall$raw.count) #calculates the relative abundance across all samples of each taxon to determine if it is above or below the cutoff
   physeq.melt = psmelt(physeq.new) #turns phyloseq object into dataframe
   #physeq.melt = physeq.melt[, -4]
-  physeq.melt[, rank] = as.character(physeq.melt[, rank])
+  rank_end = which(colnames(physeq.melt) == rank)
+  rank_start = which(colnames(physeq.melt) == first_rank)
+  physeq.melt[, rank_start:rank_end] = apply(physeq.melt[, rank_start:rank_end], 2, as.character)
   #colnames(physeq.melt)[1] = "OTU"
   merged = merge(physeq.melt, overall, by = "OTU") #adds the cutoff calculations to the dataframe
   
@@ -51,8 +54,10 @@ otu_abundance = function(physeq, rank = NULL, cutoff, keep_ranks = T) {
   out = merge(others.combined, merged, by = c("Sample", "OTU"), all = F)
   out$raw.count = NULL
   out$OTU = NULL
-  #out[out[rank] == "Other", (ncol(out)-nranks+1):(ncol(out)-1)] = "Other"
-  #^As is this doesn't add the values of all those Others together and I think it is just deleting the rows that happen to have the exact same abundances.
+  rank_end = which(colnames(out) == rank)
+  rank_start = which(colnames(out) == first_rank)
+  out[out[rank] == "Other", rank_start:rank_end] = "Other"
+  #Now sum "Other" for each individual sample
   out = distinct(out)
   return(distinct(out))
 }
