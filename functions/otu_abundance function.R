@@ -54,10 +54,12 @@ otu_abundance = function(physeq, rank = NULL, cutoff, keep_ranks = T) {
   out = merge(others.combined, merged, by = c("Sample", "OTU"), all = F)
   out$raw.count = NULL
   out$OTU = NULL
+  out$rel.abund = NULL
   rank_end = which(colnames(out) == rank)
   rank_start = which(colnames(out) == first_rank)
   out[out[rank] == "Other", rank_start:rank_end] = "Other"
   #Now sum "Other" for each individual sample
-  out = distinct(out)
-  return(distinct(out))
+  out2 = aggregate(Abundance ~ ., data = out, sum)
+  out2 = distinct(out2)
+  return(out2)
 }
