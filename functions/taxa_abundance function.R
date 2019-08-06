@@ -1,4 +1,4 @@
-otu_abundance = function(physeq, rank = NULL, cutoff) { 
+taxa_abundance = function(physeq, rank = NULL, cutoff) { 
 
   require(phyloseq)
   require(magrittr)
