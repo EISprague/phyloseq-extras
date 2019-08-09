@@ -1,5 +1,5 @@
 phyloseq_NA_tax = function(physeq) {
-  
+  ###This function assumes that the taxonomy table of physeq has exactly seven columns with the classic Linnaean taxonomic level names as the column names.
   require(phyloseq)
   out = physeq
   
