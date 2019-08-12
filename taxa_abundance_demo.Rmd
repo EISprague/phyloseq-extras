@@ -1,0 +1,69 @@
+---
+title: "taxa_abundance output demo"
+author: "Emily Sprague"
+---
+This file demonstrates how to use the taxa_abundance and phyloseq_NA_tax functions included in this repo. The taxa_abundance function is to produce a data frame that can be used to make a taxa abundance stacked bar graph. The phyloseq_NA_tax function prepares the phyloseq object to be used as input to the taxa_abundance function These functions are intended for use with the phyloseq package and use the accompanying "GlobalPatterns" data set to demonstrate. Made with R version 3.5.2, phyloseq version 1.26.1, and ggplot2 version 3.1.0.
+```{r sources}
+library(phyloseq)
+library(ggplot2)
+source("functions/phyloseq_NA_tax function.R")
+source("functions/taxa_abundance function.R")
+data("GlobalPatterns")
+```
+Often, in a phyloseq taxonomy table, several taxonomic levels for a given feature/OTU/SV will be "NA" because the representative sequence could not be identified to the species level. I prefer to fill the "NA" spaces with the lowest identified taxonomic level. The function phyloseq_NA_tax takes care of this. First, what the GlobalPatterns taxonomy table looks like initially; note that all but one of the features shown is only identified to the class level.
+```{r}
+knitr::kable(head(tax_table(GlobalPatterns)))
+```
+  
+Now the phyloseq_NA_tax function will return a phyloseq object with the NAs replaced with the lowest taxonomic level that was identified for the feature. If no level could be identified, all levels will say "Unassigned_kingdom". The only argument is the phyloseq object. This function assumes that the phyloseq object's taxonomy table has exactly seven columns with the classic Linnaean taxonomic levels as the column names.
+```{r}
+Global_cleaned = phyloseq_NA_tax(GlobalPatterns)
+knitr::kable(head(tax_table(Global_cleaned)))
+```
+  
+Now it's almost ready to have its taxa ranked. First: transforming the abundance values from raw to relative. Then use the taxa_abundance function. The first argument is the phyloseq argument. The second, rank, is the taxonomic level the data should be grouped/agglomerated at. If your input phyloseq object has already been agglomerated to your level of interest (using the tax_glom or tip_glom functions), leave rank = NULL. Finally, cutoff determines how many of the most abundant taxa will be returned, instead of labeled and grouped together as "Other". In this example, rank is set to Phylum, and the cutoff is set to 15, meaning the top 15 most abundant phyla will be retained in the output data frame (and therefore can be visualized in a plot), and the remaining phyla will all grouped together. See below for a demonstration with a cutoff below 1.
+```{r, message = F}
+Global_rel = transform_sample_counts(Global_cleaned, function(x) x/sum(x))
+Global_phyla = taxa_abundance(Global_rel, rank = "Phylum", cutoff = 15)
+Global_phyla$X.SampleID = NULL #This column is redundant with the Sample column
+knitr::kable(head(Global_phyla))
+```
+  
+The following lines of code are how I set my data frame up to use with gglot2. I overwrite all the taxa entries that say "Other" with "zOther" so their color block will be forced by alphabetical order to be rendered at the bottom. For the GlobalPatterns data set, I add the Source column to group similar samples types so they are easier to compare.
+```{r}
+Global_phyla$Phylum[Global_phyla$Phylum == "Other"] = "zOther"
+Global_phyla$Source[Global_phyla$SampleType %in% c("Skin", "Feces", "Tongue")] = "Human"
+Global_phyla$Source[Global_phyla$SampleType == "Soil"] = "Terrestrial"
+Global_phyla$Source[Global_phyla$SampleType %in% c("Freshwater", "Freshwater (creek)")] = "Freshwater"
+Global_phyla$Source[Global_phyla$SampleType %in% c("Ocean", "Sediment (estuary)")] = "Salt water"
+Global_phyla$Source[Global_phyla$SampleType == "Mock"] = "Other"
+Global_phyla$Source = factor(Global_phyla$Source, levels = c("Human", "Terrestrial", "Freshwater", "Salt water", "Other"), ordered = T)
+levels(Global_phyla$SampleType)[3] = "Creek"
+levels(Global_phyla$SampleType)[6] = "Estuary sed."
+Global_phyla$SampleType = factor(Global_phyla$SampleType)
+```
+The following is a column plot made with ggplot2. In this case, only a small proportion of sequences were not in the top 15 most abundant, and were therefore classified as "Other" (mostly in the soil, freshwater creek, and salt water samples).
+```{r plot1, echo=F, fig.height=4.25, out.width='100%', fig.align='center'}
+library(magrittr)
+taxa = sort(unique(Global_phyla$Phylum)) %>%
+  factor(., levels = ., ordered = T)
+bar.colors = colors()[c(24, 117, 142, 26, 507, 393, 222, 96, 109,
+                        91, 85, 555, 291, 639, 25, 94,
+                        24, 117, 142, 26, 507, 393, 222, 96, 109,
+                        91, 85, 555, 291, 639, 25, 94)]
+bar.colors = bar.colors[1:length(taxa)]; names(bar.colors) = levels(taxa)
+ggplot(Global_phyla, aes(x = Sample, y = Abundance, fill = Phylum)) +
+  facet_grid(. ~ Source + SampleType, scales = "free", space = "free", drop = T) +
+  geom_col() +
+  scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
+  ylab("Relative abundance") +
+  scale_fill_manual(breaks = names(bar.colors), values = bar.colors, guide = guide_legend(ncol = 1)) +
+  theme_classic(base_size = 10) +
+  theme(axis.text.x = element_text(size = 6, angle = 45, hjust = 0.9),
+        axis.text.y = element_text(size = 6),
+        axis.title = element_text(size = 8), axis.title.x = element_text(vjust = 3), axis.title.y = element_text(vjust = -1),
+        panel.spacing.y = unit(0, "line"),
+        legend.key.size = unit(0.9, "line"), legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6), legend.box.margin = margin(0, 0, 0, 0), legend.margin = margin(0, 0, 0, 0),
+        strip.text = element_text(size = 5.75), strip.background = element_blank())
+```
