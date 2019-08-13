@@ -45,19 +45,61 @@ Global_phyla$SampleType = factor(Global_phyla$SampleType)
 The following is a column plot made with ggplot2. In this case, only a small proportion of sequences were not in the top 15 most abundant, and were therefore classified as "Other" (mostly in the soil, freshwater creek, and salt water samples).
 ```{r plot1, echo=F, fig.height=4.25, out.width='100%', fig.align='center'}
 library(magrittr)
-taxa = sort(unique(Global_phyla$Phylum)) %>%
-  factor(., levels = ., ordered = T)
 bar.colors = colors()[c(24, 117, 142, 26, 507, 393, 222, 96, 109,
                         91, 85, 555, 291, 639, 25, 94,
                         24, 117, 142, 26, 507, 393, 222, 96, 109,
                         91, 85, 555, 291, 639, 25, 94)]
-bar.colors = bar.colors[1:length(taxa)]; names(bar.colors) = levels(taxa)
+phyla = sort(unique(Global_phyla$Phylum)) %>%
+  factor(., levels = ., ordered = T)
+bar.colors.phyla = bar.colors[1:length(phyla)]; names(bar.colors.phyla) = levels(phyla)
 ggplot(Global_phyla, aes(x = Sample, y = Abundance, fill = Phylum)) +
   facet_grid(. ~ Source + SampleType, scales = "free", space = "free", drop = T) +
   geom_col() +
   scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
   ylab("Relative abundance") +
-  scale_fill_manual(breaks = names(bar.colors), values = bar.colors, guide = guide_legend(ncol = 1)) +
+  scale_fill_manual(breaks = names(bar.colors.phyla), values = bar.colors.phyla, 
+                    guide = guide_legend(ncol = 1), labels = c(levels(phyla)[-length(phyla)], "Other")) +
+  theme_classic(base_size = 10) +
+  theme(axis.text.x = element_text(size = 6, angle = 45, hjust = 0.9),
+        axis.text.y = element_text(size = 6),
+        axis.title = element_text(size = 8), 
+        axis.title.x = element_text(vjust = 3), axis.title.y = element_text(vjust = -1),
+        panel.spacing.y = unit(0, "line"),
+        legend.key.size = unit(0.9, "line"), legend.title = element_text(size = 7),
+        legend.text = element_text(size = 6), 
+        legend.box.margin = margin(0, 0, 0, 0), legend.margin = margin(0, 0, 0, 0),
+        strip.text = element_text(size = 5.75), strip.background = element_blank())
+```
+Below, I follow the same workflow as above, but instead using a rank of Family and a cutoff of 0.015. While using a cutoff of greater than 1 will rank all taxa and then return the taxa that are NOT in the top cutoff number of taxa as "Other", using a cutoff of less than 1 will treat the cutoff as a percentage (i.e. 0.01 equivalent to 1%) and all taxa that have an overall relative abundance less than the cutoff will be returned as "Other". Using this option will take some exploring to find the best percentage to return a manageable number of taxa.
+```{r, message=F}
+Global_families = taxa_abundance(Global_rel, rank = "Family", cutoff = 0.015)
+Global_families$X.SampleID = NULL #This column is redundant with the Sample column
+knitr::kable(head(Global_families))
+```
+```{r}
+Global_families$Family[Global_families$Family == "Other"] = "zOther"
+Global_families$Source[Global_families$SampleType %in% c("Skin", "Feces", "Tongue")] = "Human"
+Global_families$Source[Global_families$SampleType == "Soil"] = "Terrestrial"
+Global_families$Source[Global_families$SampleType %in% c("Freshwater", "Freshwater (creek)")] = "Freshwater"
+Global_families$Source[Global_families$SampleType %in% c("Ocean", "Sediment (estuary)")] = "Salt water"
+Global_families$Source[Global_families$SampleType == "Mock"] = "Other"
+Global_families$Source = factor(Global_families$Source, levels = c("Human", "Terrestrial", "Freshwater", "Salt water", "Other"), ordered = T)
+levels(Global_families$SampleType)[3] = "Creek"
+levels(Global_families$SampleType)[6] = "Estuary sed."
+Global_families$SampleType = factor(Global_families$SampleType)
+```
+Here is the plot. Note the "families" that were actually only identifiable to the Order level.
+```{r plot2, echo=F, fig.height=4.25, out.width='100%', fig.align='center'}
+families = sort(unique(Global_families$Family)) %>%
+  factor(., levels = ., ordered = T)
+bar.colors.families = bar.colors[1:length(families)]; names(bar.colors.families) = levels(families)
+ggplot(Global_families, aes(x = Sample, y = Abundance, fill = Family)) +
+  facet_grid(. ~ Source + SampleType, scales = "free", space = "free", drop = T) +
+  geom_col() +
+  scale_y_continuous(expand = c(0, 0), labels = scales::percent) +
+  ylab("Relative abundance") +
+  scale_fill_manual(breaks = names(bar.colors.families), values = bar.colors.families, 
+                    guide = guide_legend(ncol = 1), labels = c(levels(families)[-length(families)], "Other")) +
   theme_classic(base_size = 10) +
   theme(axis.text.x = element_text(size = 6, angle = 45, hjust = 0.9),
         axis.text.y = element_text(size = 6),
