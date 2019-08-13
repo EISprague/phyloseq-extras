@@ -6,8 +6,8 @@ This file demonstrates how to use the taxa_abundance and phyloseq_NA_tax functio
 ```{r sources}
 library(phyloseq)
 library(ggplot2)
-source("functions/phyloseq_NA_tax function.R")
-source("functions/taxa_abundance function.R")
+source("../functions/phyloseq_NA_tax function.R")
+source("../functions/taxa_abundance function.R")
 data("GlobalPatterns")
 ```
 Often, in a phyloseq taxonomy table, several taxonomic levels for a given feature/OTU/SV will be "NA" because the representative sequence could not be identified to the species level. I prefer to fill the "NA" spaces with the lowest identified taxonomic level. The function phyloseq_NA_tax takes care of this. First, what the GlobalPatterns taxonomy table looks like initially; note that all but one of the features shown is only identified to the class level.

@@ -198,8 +198,8 @@ $(document).ready(function () {
 <p>This file demonstrates how to use the taxa_abundance and phyloseq_NA_tax functions included in this repo. The taxa_abundance function is to produce a data frame that can be used to make a taxa abundance stacked bar graph. The phyloseq_NA_tax function prepares the phyloseq object to be used as input to the taxa_abundance function These functions are intended for use with the phyloseq package and use the accompanying “GlobalPatterns” data set to demonstrate. Made with R version 3.5.2, phyloseq version 1.26.1, and ggplot2 version 3.1.0.</p>
 <pre class="r"><code>library(phyloseq)
 library(ggplot2)
-source(&quot;functions/phyloseq_NA_tax function.R&quot;)
-source(&quot;functions/taxa_abundance function.R&quot;)
+source(&quot;../functions/phyloseq_NA_tax function.R&quot;)
+source(&quot;../functions/taxa_abundance function.R&quot;)
 data(&quot;GlobalPatterns&quot;)</code></pre>
 <p>Often, in a phyloseq taxonomy table, several taxonomic levels for a given feature/OTU/SV will be “NA” because the representative sequence could not be identified to the species level. I prefer to fill the “NA” spaces with the lowest identified taxonomic level. The function phyloseq_NA_tax takes care of this. First, what the GlobalPatterns taxonomy table looks like initially; note that all but one of the features shown is only identified to the class level.</p>
 <pre class="r"><code>knitr::kable(head(tax_table(GlobalPatterns)))</code></pre>
