@@ -13,4 +13,4 @@ Functions and scripts that make microbiome data analysis using phyloseq easier. 
 ### Example graphs and workflows that use the above functions (demos folder)  
 **negative control removal example.R**: A workflow example of my functions for removing OTUs identified as potential contaminants found in negative controls (see "negative control functions.R" above). Uses the GlobalPatterns data set, and for demonstration purposes treats the mock community samples like negative controls.  
 
-**taxa_abundance_demo**: A workflow example of how to use the taxa_abundance and phyloseq_NA_tax functions.
+**taxa_abundance_demo.Rmd**: A workflow example of how to use the taxa_abundance and phyloseq_NA_tax functions. See the HTML output here: http://htmlpreview.github.io/?https://github.com/EISprague/phyloseq-extras/blob/master/demos/taxa_abundance_demo.html
